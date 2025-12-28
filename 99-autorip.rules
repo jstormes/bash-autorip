@@ -1,0 +1,7 @@
+# MakeMKV Auto-Rip udev rule
+# Triggers autorip.sh when a disc is inserted in any optical drive (sr0, sr1, etc.)
+#
+# Install: sudo cp 99-autorip.rules /etc/udev/rules.d/
+# Reload:  sudo udevadm control --reload-rules
+
+ACTION=="change", SUBSYSTEM=="block", KERNEL=="sr[0-9]*", ENV{ID_CDROM_MEDIA}=="1", RUN+="/usr/local/bin/autorip.sh %k"
