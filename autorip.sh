@@ -61,6 +61,9 @@ fi
 # Redirect output to log file when running detached
 exec >> "/tmp/autorip-${DEVICE}.log" 2>&1
 
+# Set permissive umask so all created files are world read-write
+umask 000
+
 # Acquire lock (per-device, allows parallel rips on different drives)
 exec 200>"$LOCK_FILE"
 if ! flock -n 200; then
