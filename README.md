@@ -63,6 +63,20 @@ tail -f /tmp/autorip-sr0.log
 systemctl list-units --type=service | grep autorip
 ```
 
+## Troubleshooting
+
+### "No such file or directory" when script exists
+
+If you get `unable to execute /usr/local/bin/autorip.sh: No such file or directory` even though the file exists, the script likely has Windows-style line endings (CRLF). Fix with:
+
+```bash
+sudo sed -i 's/\r$//' /usr/local/bin/autorip.sh
+sudo sed -i 's/\r$//' /etc/udev/rules.d/99-autorip.rules
+sudo udevadm control --reload-rules
+```
+
+This commonly happens when files are edited on Windows or cloned with Git's autocrlf enabled.
+
 ## Files
 
 | File | Purpose |
