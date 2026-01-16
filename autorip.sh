@@ -26,6 +26,11 @@ RIPPED_FILE="$OUTPUT_DIR/.ripped_discs"
 LOG_TAG="autorip"
 AUDIO_FORMAT="${AUTORIP_AUDIO_FORMAT:-flac}"  # flac, mp3, ogg, etc.
 
+# User to run as (leave empty to run as root)
+# Set these to run the rip process as a specific user (useful for NFS mounts with root_squash)
+AUTORIP_USER="${AUTORIP_USER:-}"
+AUTORIP_GROUP="${AUTORIP_GROUP:-}"
+
 # Get device from argument
 DEVICE="${1:-}"
 if [[ -z "$DEVICE" ]]; then
@@ -46,13 +51,28 @@ log() {
 # udev expects RUN commands to complete quickly
 # Use systemd-run to create independent transient service
 if [[ "${AUTORIP_DETACHED:-}" != "1" ]]; then
+    # Build user/group arguments if specified (for NFS root_squash compatibility)
+    USER_ARGS=()
+    if [[ -n "$AUTORIP_USER" ]]; then
+        USER_ARGS+=(--uid="$AUTORIP_USER")
+        # Set HOME for the target user (needed for MakeMKV license, abcde config, etc.)
+        USER_HOME=$(getent passwd "$AUTORIP_USER" | cut -d: -f6)
+        [[ -n "$USER_HOME" ]] && USER_ARGS+=(--setenv=HOME="$USER_HOME")
+    fi
+    if [[ -n "$AUTORIP_GROUP" ]]; then
+        USER_ARGS+=(--gid="$AUTORIP_GROUP")
+    fi
+
     systemd-run --quiet --no-block \
+        "${USER_ARGS[@]}" \
         --unit="autorip-${DEVICE}-$(date +%s)" \
         --setenv=AUTORIP_DETACHED=1 \
         --setenv=AUTORIP_OUTPUT="$OUTPUT_DIR" \
         --setenv=AUTORIP_AUDIO_OUTPUT="$AUDIO_OUTPUT_DIR" \
         --setenv=AUTORIP_VIDEO_OUTPUT="$VIDEO_OUTPUT_DIR" \
         --setenv=AUTORIP_AUDIO_FORMAT="$AUDIO_FORMAT" \
+        --setenv=AUTORIP_USER="$AUTORIP_USER" \
+        --setenv=AUTORIP_GROUP="$AUTORIP_GROUP" \
         --setenv=PATH="/usr/local/bin:/usr/bin:/bin:/sbin:/usr/sbin" \
         "$0" "$@"
     exit 0

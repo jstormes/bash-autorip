@@ -71,6 +71,30 @@ Environment variables for customization:
 | `AUTORIP_VIDEO_OUTPUT` | `/ripped_discs/video` | Video disc output |
 | `AUTORIP_AUDIO_OUTPUT` | `/ripped_discs/audio` | Audio CD output |
 | `AUTORIP_AUDIO_FORMAT` | `flac` | Audio format (flac, mp3, ogg) |
+| `AUTORIP_USER` | *(empty)* | Run rip process as this user |
+| `AUTORIP_GROUP` | *(empty)* | Run rip process as this group |
+
+### Running as a Specific User (NFS Support)
+
+By default, the script runs as root. If your output directory is on an NFS mount with `root_squash` enabled (the default), root will be mapped to `nobody` and won't have write permissions.
+
+To run as a specific user, edit `/usr/local/bin/autorip.sh` and set:
+
+```bash
+AUTORIP_USER="${AUTORIP_USER:-yourusername}"
+AUTORIP_GROUP="${AUTORIP_GROUP:-yourusername}"
+```
+
+Or hardcode the values:
+```bash
+AUTORIP_USER="jstormes"
+AUTORIP_GROUP="jstormes"
+```
+
+**Requirements when running as a non-root user:**
+- User must be in the `cdrom` group for drive access: `sudo usermod -aG cdrom yourusername`
+- MakeMKV license must be in the user's home: `~/.MakeMKV/settings.conf`
+- User needs write permission to the output directory
 
 ## Testing
 
