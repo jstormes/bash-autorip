@@ -203,10 +203,13 @@ rip_audio_cd() {
     # Create abcde config for this rip
     # Include disc_id in path to prevent overwrites when metadata lookup fails
     local abcde_conf=$(mktemp)
+    local abcde_tempdir="/tmp/abcde-$$-${disc_id}"
+    mkdir -p "$abcde_tempdir"
     cat > "$abcde_conf" << EOF
 # abcde config for autorip
 CDROM="$DEVICE_PATH"
 OUTPUTDIR="$AUDIO_OUTPUT_DIR"
+WAVOUTPUTDIR="$abcde_tempdir"
 OUTPUTTYPE="$AUDIO_FORMAT"
 ACTIONS=cddb,read,encode,tag,move,clean
 CDDBMETHOD=musicbrainz
@@ -290,6 +293,7 @@ EOF
     fi
 
     rm -f "$rip_output"
+    rm -rf "$abcde_tempdir"
 }
 
 # ============================================================
