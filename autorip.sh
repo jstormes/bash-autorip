@@ -47,6 +47,27 @@ log() {
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] [$DEVICE] $*"
 }
 
+# File locking for shared RIPPED_FILE access (prevents race conditions with parallel rips)
+RIPPED_FILE_LOCK="/tmp/autorip-ripped.lock"
+
+# Check if disc ID exists in ripped file (with locking)
+is_already_ripped() {
+    local disc_id="$1"
+    (
+        flock -s 201
+        [[ -f "$RIPPED_FILE" ]] && grep -qF "$disc_id" "$RIPPED_FILE"
+    ) 201>"$RIPPED_FILE_LOCK"
+}
+
+# Add disc ID to ripped file (with locking)
+mark_as_ripped() {
+    local entry="$1"
+    (
+        flock -x 201
+        echo "$entry" >> "$RIPPED_FILE"
+    ) 201>"$RIPPED_FILE_LOCK"
+}
+
 # Detach from udev and run in background
 # udev expects RUN commands to complete quickly
 # Use systemd-run to create independent transient service
@@ -150,11 +171,11 @@ detect_disc_type() {
         fi
     fi
 
-    # Try MakeMKV as fallback for video detection
+    # Try MakeMKV as fallback for video detection (use dev: to query only this drive)
     if command -v makemkvcon &>/dev/null; then
-        echo "[DEBUG] Trying MakeMKV fallback detection" >&2
-        local info=$(makemkvcon -r info disc:9999 2>&1)
-        if echo "$info" | grep -q "\"$device\""; then
+        echo "[DEBUG] Trying MakeMKV fallback detection for $device" >&2
+        local info=$(makemkvcon -r info "dev:$device" 2>&1)
+        if echo "$info" | grep -qE "TCOUNT:[0-9]+"; then
             echo "[DEBUG] Detected as video (MakeMKV found disc)" >&2
             echo "video"
             return
@@ -189,8 +210,8 @@ rip_audio_cd() {
 
     log "Audio disc ID: $disc_id"
 
-    # Check if already ripped
-    if [[ -f "$RIPPED_FILE" ]] && grep -qF "audio:$disc_id" "$RIPPED_FILE"; then
+    # Check if already ripped (with file locking for parallel safety)
+    if is_already_ripped "audio:$disc_id"; then
         log "Audio CD already ripped: $disc_id"
         log "Ejecting duplicate disc..."
         eject "$DEVICE_PATH" 2>/dev/null || log "WARNING: Could not eject disc"
@@ -247,8 +268,8 @@ EOF
         log "Artist: $artist"
         log "Album: $album"
 
-        # Mark as ripped
-        echo "audio:$disc_id|$artist - $album|$(date -Iseconds)" >> "$RIPPED_FILE"
+        # Mark as ripped (with file locking for parallel safety)
+        mark_as_ripped "audio:$disc_id|$artist - $album|$(date -Iseconds)"
 
         # Create success marker in output dir if we can find it
         local safe_artist=$(sanitize_name "$artist")
@@ -302,46 +323,15 @@ EOF
 rip_video_disc() {
     log "Detected: Video disc (DVD/Blu-ray)"
 
-    # Find MakeMKV drive index for this device
-    get_drive_index() {
-        local device_path="$1"
-        local info
-        local line
-        local idx
-
-        echo "[DEBUG] Getting drive index for $device_path..." >&2
-
-        if ! info=$(makemkvcon -r info disc:9999 2>&1); then
-            echo "[DEBUG] WARNING: makemkvcon returned non-zero exit code" >&2
-        fi
-
-        echo "[DEBUG] makemkvcon returned ${#info} bytes" >&2
-
-        line=$(echo "$info" | grep -E "^DRV:[0-9]+.*\"$device_path\"" | head -1) || true
-        echo "[DEBUG] Matched line: $line" >&2
-
-        if [[ -n "$line" ]]; then
-            idx="${line#DRV:}"
-            idx="${idx%%,*}"
-            echo "[DEBUG] Extracted drive index: $idx" >&2
-            echo "$idx"
-        else
-            echo "[DEBUG] ERROR: No DRV line matched $device_path" >&2
-        fi
-    }
-
-    DRIVE_INDEX=$(get_drive_index "$DEVICE_PATH")
-    if [[ -z "$DRIVE_INDEX" ]]; then
-        log "ERROR: Could not find MakeMKV drive index for $DEVICE_PATH"
-        return 1
-    fi
-
-    log "Drive index: $DRIVE_INDEX"
+    # Use dev: syntax to address drive directly by device path
+    # This avoids race conditions when multiple drives are ripping simultaneously
+    DRIVE_SPEC="dev:$DEVICE_PATH"
+    log "Using drive spec: $DRIVE_SPEC"
 
     # Get disc info
     log "Getting disc info..."
-    log "Running: makemkvcon -r info disc:$DRIVE_INDEX"
-    DISC_INFO=$(makemkvcon -r info "disc:$DRIVE_INDEX" 2>&1) || true
+    log "Running: makemkvcon -r info $DRIVE_SPEC"
+    DISC_INFO=$(makemkvcon -r info "$DRIVE_SPEC" 2>&1) || true
 
     # Debug: show what we got
     log "DISC_INFO length: ${#DISC_INFO} bytes"
@@ -363,8 +353,8 @@ rip_video_disc() {
     DISC_ID="video:${DISC_NAME}:${DISC_ID_HASH}"
     log "Disc ID: $DISC_ID"
 
-    # Check if already ripped
-    if [[ -f "$RIPPED_FILE" ]] && grep -qF "$DISC_ID" "$RIPPED_FILE"; then
+    # Check if already ripped (with file locking for parallel safety)
+    if is_already_ripped "$DISC_ID"; then
         log "Disc already ripped: $DISC_ID"
         log "Ejecting duplicate disc..."
         eject "$DEVICE_PATH" 2>/dev/null || log "WARNING: Could not eject disc"
@@ -388,7 +378,7 @@ rip_video_disc() {
         echo "  \"name\": \"$DISC_NAME\","
         echo "  \"hash\": \"$DISC_ID_HASH\","
         echo "  \"device\": \"$DEVICE_PATH\","
-        echo "  \"driveIndex\": $DRIVE_INDEX,"
+        echo "  \"driveSpec\": \"$DRIVE_SPEC\","
         echo "  \"ripDate\": \"$(date -Iseconds)\","
 
         TITLE_COUNT=$(echo "$DISC_INFO" | grep -oP 'TCOUNT:\K\d+' || echo "0")
@@ -414,11 +404,11 @@ rip_video_disc() {
 
     # Run MakeMKV rip
     log "Starting rip..."
-    log "Command: makemkvcon -r mkv disc:$DRIVE_INDEX all \"$RIP_DIR\""
+    log "Command: makemkvcon -r mkv $DRIVE_SPEC all \"$RIP_DIR\""
 
     RIP_OUTPUT=$(mktemp)
     RIP_EXIT_CODE=0
-    makemkvcon -r mkv "disc:$DRIVE_INDEX" all "$RIP_DIR" 2>&1 | tee "$RIP_OUTPUT" || RIP_EXIT_CODE=$?
+    makemkvcon -r mkv "$DRIVE_SPEC" all "$RIP_DIR" 2>&1 | tee "$RIP_OUTPUT" || RIP_EXIT_CODE=$?
 
     # Parse results
     TITLES_SAVED=$(grep -oP 'MSG:5005,\d+,\d+,"\K\d+(?= titles? saved)' "$RIP_OUTPUT" || echo "0")
@@ -455,7 +445,7 @@ rip_video_disc() {
             find "$RIP_DIR" -name "*.mkv" -type f -printf "  - %f\n" 2>/dev/null || true
         } > "$RIP_DIR/success.txt"
 
-        echo "$DISC_ID|$RIP_DIR|$(date -Iseconds)" >> "$RIPPED_FILE"
+        mark_as_ripped "$DISC_ID|$RIP_DIR|$(date -Iseconds)"
 
         log "Ejecting disc..."
         for attempt in 1 2 3 4 5; do
@@ -486,7 +476,7 @@ rip_video_disc() {
             echo ""
             echo "TO RETRY MANUALLY:"
             echo "1. Insert disc in drive"
-            echo "2. Run: makemkvcon mkv disc:$DRIVE_INDEX all \"$RIP_DIR\""
+            echo "2. Run: makemkvcon mkv $DRIVE_SPEC all \"$RIP_DIR\""
         } > "$RIP_DIR/error.txt"
 
         log "Error file written: $RIP_DIR/error.txt"
