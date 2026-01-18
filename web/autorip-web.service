@@ -1,0 +1,40 @@
+[Unit]
+Description=Autorip Web Dashboard
+Documentation=https://github.com/jstormes/bash-autorip
+After=network.target
+
+[Service]
+Type=simple
+User=root
+Group=root
+WorkingDirectory=/opt/autorip-web
+ExecStart=/usr/bin/node /opt/autorip-web/server.js
+
+# Environment variables (customize as needed)
+Environment=AUTORIP_WEB_PORT=8080
+Environment=AUTORIP_WEB_HOST=0.0.0.0
+Environment=AUTORIP_STATUS_DIR=/var/lib/autorip/status
+Environment=AUTORIP_HISTORY_FILE=/var/lib/autorip/history.json
+Environment=AUTORIP_DRIVE_STATS_FILE=/var/lib/autorip/drive_stats.json
+Environment=AUTORIP_LOG_DIR=/tmp
+Environment=AUTORIP_CRASH_TIMEOUT=300
+Environment=AUTORIP_AUTO_RESET=true
+
+# Restart configuration
+Restart=always
+RestartSec=5
+
+# Security settings (limited for now as we need root for bus reset)
+# Consider adding more restrictions if bus reset is not needed
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/autorip /tmp
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=autorip-web
+
+[Install]
+WantedBy=multi-user.target

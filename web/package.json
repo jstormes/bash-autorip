@@ -1,0 +1,19 @@
+{
+  "name": "autorip-web",
+  "version": "1.0.0",
+  "description": "Web dashboard for bash-autorip system",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "keywords": ["autorip", "dvd", "bluray", "ripping", "dashboard"],
+  "author": "James Stormes",
+  "license": "MIT",
+  "dependencies": {
+    "ws": "^8.16.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

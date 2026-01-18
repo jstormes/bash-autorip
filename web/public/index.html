@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Autorip Dashboard</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header>
+        <h1>Autorip Dashboard</h1>
+        <div id="connection-status" class="status-indicator connected">
+            <span class="dot"></span>
+            <span class="text">Connected</span>
+        </div>
+    </header>
+
+    <main>
+        <!-- Drive Status Section -->
+        <section id="drives-section">
+            <h2>Drive Status</h2>
+            <div id="drives-container" class="card-grid">
+                <!-- Drive cards will be inserted here -->
+                <div class="placeholder">
+                    <p>No drives detected</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Bus Management Section -->
+        <section id="buses-section">
+            <h2>Bus Management</h2>
+            <div id="buses-container" class="card-grid">
+                <!-- Bus cards will be inserted here -->
+            </div>
+        </section>
+
+        <!-- Log Viewer Section -->
+        <section id="log-section">
+            <h2>Log Viewer</h2>
+            <div class="log-controls">
+                <select id="log-device-select">
+                    <option value="">Select drive...</option>
+                </select>
+                <button id="log-refresh-btn">Refresh</button>
+                <label>
+                    <input type="checkbox" id="log-auto-scroll" checked>
+                    Auto-scroll
+                </label>
+            </div>
+            <pre id="log-output" class="log-viewer"></pre>
+        </section>
+
+        <!-- History Section -->
+        <section id="history-section">
+            <h2>Rip History</h2>
+            <div class="history-controls">
+                <select id="history-filter">
+                    <option value="all">All</option>
+                    <option value="success">Success</option>
+                    <option value="partial">Partial</option>
+                    <option value="error">Error</option>
+                </select>
+            </div>
+            <table id="history-table">
+                <thead>
+                    <tr>
+                        <th>Time</th>
+                        <th>Device</th>
+                        <th>Disc</th>
+                        <th>Type</th>
+                        <th>Status</th>
+                        <th>Duration</th>
+                        <th>Titles</th>
+                    </tr>
+                </thead>
+                <tbody id="history-tbody">
+                    <!-- History rows will be inserted here -->
+                </tbody>
+            </table>
+        </section>
+    </main>
+
+    <!-- Reset Confirmation Modal -->
+    <div id="reset-modal" class="modal hidden">
+        <div class="modal-content">
+            <h3>Confirm Bus Reset</h3>
+            <div id="reset-modal-body">
+                <!-- Modal content will be inserted here -->
+            </div>
+            <div class="modal-actions">
+                <button id="reset-cancel-btn" class="btn-secondary">Cancel</button>
+                <button id="reset-confirm-btn" class="btn-danger">Reset Bus</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Error Toast -->
+    <div id="toast" class="toast hidden">
+        <span id="toast-message"></span>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

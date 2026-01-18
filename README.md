@@ -1,9 +1,10 @@
 # bash-autorip
 
-A simple bash script for automatic disc ripping triggered by udev.
+A simple bash script for automatic disc ripping triggered by udev, with an optional web dashboard for monitoring.
 
 - **DVDs/Blu-rays** - Ripped via [MakeMKV](https://www.makemkv.com/)
 - **Audio CDs** - Ripped via [abcde](https://abcde.einval.com/) with MusicBrainz metadata lookup
+- **Web Dashboard** - Real-time monitoring, progress tracking, and crash recovery
 
 ## How It Works
 
@@ -14,6 +15,7 @@ Insert a disc, walk away. The script automatically:
 3. Looks up metadata (MusicBrainz for audio CDs)
 4. Tracks duplicates (won't re-rip same disc)
 5. Ejects disc on success
+6. Reports status to web dashboard (optional)
 
 ## Quick Start
 
@@ -55,6 +57,28 @@ sudo cp ~/.MakeMKV/* /root/.MakeMKV/
 
 ## Monitoring
 
+### Web Dashboard (Recommended)
+
+Install the web dashboard for real-time monitoring:
+
+```bash
+cd web
+sudo ./install.sh
+
+# Dashboard at http://localhost:8080
+```
+
+Features:
+- Real-time drive status with progress bars
+- Live log viewer
+- Rip history with success/failure tracking
+- Automatic crash detection and bus reset
+- Drive health statistics
+
+See [web/README.md](web/README.md) for configuration options.
+
+### Command Line
+
 ```bash
 # Watch rip progress
 tail -f /tmp/autorip-sr0.log
@@ -84,6 +108,8 @@ This commonly happens when files are edited on Windows or cloned with Git's auto
 | `autorip.sh` | Main ripping script |
 | `99-autorip.rules` | udev rule to trigger on disc insert |
 | `INSTALL.md` | Detailed installation and troubleshooting guide |
+| `web/` | Web dashboard for monitoring |
+| `PRD.md` | Product requirements document |
 
 ## Requirements
 
